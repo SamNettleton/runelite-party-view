@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package party;
+
+message Join {
+  int64 partyId = 1;
+  int64 memberId = 2;
+}
+
+message Part {}
+
+message Data {
+  int64 memberId = 1;
+  bytes data = 2;
+  string type = 3;
+}
+
+message C2S {
+  oneof msg {
+    Join join = 1;
+    Part part = 2;
+    Data data = 3;
+  }
+}
+
+message UserJoin {
+  int64 partyId = 1;
+  int64 memberId = 2;
+}
+
+message UserPart {
+  int64 partyId = 1;
+  int64 memberId = 2;
+}
+
+message PartyData {
+  int64 partyId = 1;
+  int64 memberId = 2;
+  bytes data = 3;
+  string type = 4;
+}
+
+message S2C {
+  oneof msg {
+    UserJoin join = 1;
+    UserPart part = 2;
+    PartyData data = 3;
+  }
+}
