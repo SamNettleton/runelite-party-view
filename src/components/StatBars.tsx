@@ -12,7 +12,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="HP"
           />
-          {stats.hitpoints.current}/{stats.hitpoints.base}
+          {stats.hitpoints.current}
         </div>
       )}
       {stats.prayer && (
@@ -22,7 +22,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="Pray"
           />
-          {stats.prayer.current}/{stats.prayer.base}
+          {stats.prayer.current}
         </div>
       )}
       {stats.runEnergy !== undefined && (
@@ -32,7 +32,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="Run"
           />
-          {stats.runEnergy}%
+          {stats.runEnergy}
         </div>
       )}
       {stats.spec !== undefined && (
@@ -42,7 +42,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="Spec"
           />
-          {stats.spec}%
+          {stats.spec}
         </div>
       )}
     </div>
