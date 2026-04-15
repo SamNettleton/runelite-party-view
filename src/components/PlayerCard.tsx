@@ -10,11 +10,12 @@ import wornEquipmentIcon from '@/assets/Worn_Equipment.png';
 interface PlayerCardProps {
   memberId: string;
   player: PlayerState;
+  onHide: () => void;
 }
 
 type GridView = 'inventory' | 'equipment' | 'skills' | 'prayer';
 
-export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player }) => {
+export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide }) => {
   const [activeView, setActiveView] = useState<GridView>('inventory');
 
   const nameColor = player.member.color ? player.member.color.substring(0, 7) : '#fff';
@@ -37,9 +38,27 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player }) => {
   return (
     <div style={styles.playerCard}>
       <div style={styles.cardHeader}>
-        <h3 style={{ color: nameColor, margin: 0 }}>
-          {player.member.name || 'Unknown Player'} (level-{player.combatLevel})
-        </h3>
+        <div style={styles.headerFlex}>
+          <h3 style={{ color: nameColor, margin: 0 }}>
+            {player.member.name || 'Unknown Player'} (level-{player.combatLevel})
+          </h3>
+          <button onClick={onHide} style={styles.hideButton} title="Hide Player">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#D1D1D1" // UPDATED: Light grey stroke color
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {/* UPDATED: Path now only contains the eye, no line x1="..." */}
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div style={styles.statsWrapper}>
@@ -87,6 +106,26 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     marginBottom: '12px',
     width: '100%',
+  },
+  headerFlex: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    width: '100%',
+    padding: '0 4px',
+  },
+  hideButton: {
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2px',
+    borderRadius: '4px',
+    transition: 'opacity 0.2s',
+    opacity: 0.6,
   },
   memberId: {
     fontSize: '0.75rem',

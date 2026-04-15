@@ -13,41 +13,86 @@ export function useRuneLiteParty(partyIdStr: string | null) {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const heartbeatIntervalRef = useRef<number | null>(null);
+  const socketARef = useRef<WebSocket | null>(null);
+  const socketBRef = useRef<WebSocket | null>(null);
 
-  const getPersistentMemberId = () => {
-    const saved = localStorage.getItem('runelite-member-id');
-    if (saved) return parseInt(saved, 10);
+  const errorARef = useRef<string | null>(null);
+  const errorBRef = useRef<string | null>(null);
 
-    const newId = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
-    localStorage.setItem('runelite-member-id', newId.toString());
-    return newId;
+  // CRITICAL: Two separate IDs to bypass the 1008 "Member Resumed" error
+  const memberIdARef = useRef<number>(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+  const memberIdBRef = useRef<number>(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+
+  const createSocket = async (label: 'A' | 'B', partyId: string) => {
+    try {
+      const sessionUuid = crypto.randomUUID();
+      const currentMemberId = label === 'A' ? memberIdARef.current : memberIdBRef.current;
+
+      const ws = new WebSocket(`wss://api.runelite.net/ws2?sessionId=${sessionUuid}`);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        console.log(`[Socket ${label}] ✅ Connected as ID: ${currentMemberId}`);
+        if (label === 'A') errorARef.current = null;
+        else errorBRef.current = null;
+
+        setError(null);
+        setConnected(true);
+
+        sendHandshake(ws, partyId, currentMemberId, `Web Observer ${label}`);
+      };
+
+      ws.onmessage = (event) => {
+        if (!(event.data instanceof ArrayBuffer)) return;
+        handleProtoMessage(event.data);
+      };
+
+      ws.onerror = () => {
+        const errMsg = `Socket ${label} failed.`;
+        if (label === 'A') errorARef.current = errMsg;
+        else errorBRef.current = errMsg;
+
+        if (errorARef.current && errorBRef.current) {
+          setError('All relay connections failed.');
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log(`[Socket ${label}] 🔌 Closed (Code: ${event.code}). Reconnecting...`);
+        setTimeout(() => {
+          if (partyIdStr) createSocket(label, partyId);
+        }, 3000); // 3s buffer to prevent spamming the relay
+      };
+
+      if (label === 'A') socketARef.current = ws;
+      else socketBRef.current = ws;
+    } catch (e: any) {
+      setError(`System Error: ${e.message}`);
+    }
   };
 
-  const memberIdRef = useRef<number>(getPersistentMemberId());
+  const handleProtoMessage = (data: ArrayBuffer) => {
+    try {
+      const decoded = party.S2C.decode(new Uint8Array(data));
 
-  const startHeartbeat = (socket: WebSocket) => {
-    if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-
-    heartbeatIntervalRef.current = window.setInterval(() => {
-      if (socket.readyState === WebSocket.OPEN) {
-        const mId = Long.fromNumber(memberIdRef.current, false);
-
-        // Mimicking a UserSync is the most reliable "Stay Alive" signal
-        const syncPayload = JSON.stringify({ name: 'Web Observer' });
-        const heartbeatMsg = party.C2S.create({
-          data: {
-            memberId: mId,
-            type: 'UserSync',
-            data: new TextEncoder().encode(syncPayload),
-          },
+      if (decoded.part) {
+        const id = decoded.part.memberId!.toString();
+        setPlayers(({ [id]: _, ...rest }) => rest);
+      } else if (decoded.join) {
+        const id = decoded.join.memberId!.toString();
+        setPlayers((prev) => ({ ...prev, [id]: prev[id] || createEmptyPlayer(id) }));
+      } else if (decoded.data?.memberId && decoded.data.data) {
+        const senderId = decoded.data.memberId.toString();
+        const type = decoded.data.type!;
+        const json = JSON.parse(new TextDecoder().decode(decoded.data.data));
+        setPlayers((prev) => {
+          const player = prev[senderId] || createEmptyPlayer(senderId);
+          return { ...prev, [senderId]: updatePlayerFromData(player, type, json) };
         });
-
-        const buffer = party.C2S.encode(heartbeatMsg).finish();
-        socket.send(buffer);
-        console.log('Active Heartbeat (UserSync) sent');
       }
-    }, 300000); // 5 minutes (300,000ms)
+    } catch (e) {
+      console.error('Decode Error:', e);
+    }
   };
 
   useEffect(() => {
@@ -58,154 +103,80 @@ export function useRuneLiteParty(partyIdStr: string | null) {
       return;
     }
 
-    let ws: WebSocket;
     let isComponentMounted = true;
-    const sessionUuid = crypto.randomUUID();
-    const wsUrl = `wss://api.runelite.net/ws2?sessionId=${sessionUuid}`;
+    let shadowTimer: number;
 
-    async function initConnection() {
-      if (!partyIdStr) return;
-
-      const encoder = new TextEncoder();
-      const encoded = encoder.encode(partyIdStr);
-      const hash = await crypto.subtle.digest('SHA-256', encoded);
-      const hashArray = new Uint8Array(hash);
-      const view = new DataView(hashArray.buffer);
-
-      const rawLong = view.getBigInt64(0, true);
-      const partyIdNumeric = (rawLong & 0x7fffffffffffffffn).toString();
-
+    const init = async () => {
       try {
-        ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer';
+        const partyIdNumeric = await getPartyIdNumeric(partyIdStr);
+        if (!isComponentMounted) return;
 
-        ws.onopen = () => {
-          if (!isComponentMounted) {
-            ws?.close();
-            return;
-          }
+        createSocket('A', partyIdNumeric);
 
-          setConnected(true);
-          setError(null);
-
-          // Execute the handshake sequence
-          sendHandshake(ws, partyIdNumeric, memberIdRef);
-
-          // Start the keep-alive timer
-          startHeartbeat(ws);
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            if (!(event.data instanceof ArrayBuffer)) return;
-            const decoded = party.S2C.decode(new Uint8Array(event.data));
-
-            // Member Management
-            if (decoded.part) {
-              const id = decoded.part.memberId!.toString();
-              setPlayers(({ [id]: _, ...rest }) => rest);
-              return;
-            }
-
-            if (decoded.join) {
-              const id = decoded.join.memberId!.toString();
-              setPlayers((prev) => ({ ...prev, [id]: prev[id] || createEmptyPlayer(id) }));
-              return;
-            }
-
-            // Data Processing
-            if (decoded.data?.memberId && decoded.data.data) {
-              const senderId = decoded.data.memberId.toString();
-              const type = decoded.data.type!;
-              const json = JSON.parse(new TextDecoder().decode(decoded.data.data));
-
-              setPlayers((prev) => {
-                const player = prev[senderId] || createEmptyPlayer(senderId);
-                return {
-                  ...prev,
-                  [senderId]: updatePlayerFromData(player, type, json),
-                };
-              });
-            }
-          } catch (e) {
-            console.error('Party Message Error:', e);
-          }
-        };
-
-        ws.onerror = (err) => {
-          console.error('WS Error:', err);
-          setError('Network error occurred.');
-        };
-
-        ws.onclose = () => {
-          setConnected(false);
-          console.log('WS Closed');
-
-          if (heartbeatIntervalRef.current) {
-            clearInterval(heartbeatIntervalRef.current);
-          }
-        };
+        // 60-second offset ensures they never "die" at the same time
+        shadowTimer = window.setTimeout(() => {
+          if (isComponentMounted) createSocket('B', partyIdNumeric);
+        }, 60000);
       } catch (e: any) {
-        setError(e.message);
+        setError('Invalid Party ID.');
       }
-    }
+    };
 
-    initConnection();
+    init();
 
     return () => {
-      if (ws) ws.close();
+      isComponentMounted = false;
+      clearTimeout(shadowTimer);
+      if (socketARef.current) socketARef.current.onclose = null; // Prevent reconnect on unmount
+      if (socketBRef.current) socketBRef.current.onclose = null;
+      socketARef.current?.close();
+      socketBRef.current?.close();
     };
   }, [partyIdStr]);
 
-  return { players, connected, error, localMemberId: memberIdRef.current.toString() };
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const isAOpen = socketARef.current?.readyState === WebSocket.OPEN;
+      const isBOpen = socketBRef.current?.readyState === WebSocket.OPEN;
+      setConnected(isAOpen || isBOpen);
+    }, 1000);
+    return () => clearInterval(checkInterval);
+  }, []);
+
+  return {
+    players,
+    connected,
+    error,
+    // Expose both IDs so App.tsx can filter both out
+    localMemberIds: [memberIdARef.current.toString(), memberIdBRef.current.toString()],
+  };
 }
 
-const sendHandshake = (
-  socket: WebSocket,
-  partyIdNumeric: string,
-  memberIdRef: React.MutableRefObject<number>
-) => {
-  const pId = Long.fromString(partyIdNumeric, false);
-  const mId = Long.fromNumber(memberIdRef.current, false);
+// --- Helper Functions ---
+
+async function getPartyIdNumeric(passphrase: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(passphrase));
+  const hashArray = new Uint8Array(hash);
+  const view = new DataView(hashArray.buffer);
+  const rawLong = view.getBigInt64(0, true);
+  return (rawLong & 0x7fffffffffffffffn).toString();
+}
+
+const sendHandshake = (ws: WebSocket, partyId: string, memberId: number, name: string) => {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  const mId = Long.fromNumber(memberId, false);
+  const pId = Long.fromString(partyId, false);
   const encoder = new TextEncoder();
 
-  // 1. Join the party
-  const joinMsg = party.C2S.encode(
-    party.C2S.create({
-      join: { partyId: pId, memberId: mId },
-    })
-  ).finish();
-  socket.send(joinMsg);
-
-  // 2. Identify yourself (UserSync)
-  const syncData = encoder.encode(JSON.stringify({ name: 'Web Observer' }));
-  const syncMsg = party.C2S.encode(
-    party.C2S.create({
-      data: { memberId: mId, type: 'UserSync', data: syncData },
-    })
-  ).finish();
-  socket.send(syncMsg);
-
-  // 3. Initial Status Update
-  const statusData = encoder.encode(
-    JSON.stringify({
-      n: 'Web Observer',
-      hc: 99,
-      hm: 99,
-      pc: 99,
-      pm: 99,
-      r: 100,
-      s: 100,
-      v: false,
-      c: '#00FFFF',
-    })
+  ws.send(party.C2S.encode(party.C2S.create({ join: { partyId: pId, memberId: mId } })).finish());
+  ws.send(
+    party.C2S.encode(
+      party.C2S.create({
+        data: { memberId: mId, type: 'UserSync', data: encoder.encode(JSON.stringify({ name })) },
+      })
+    ).finish()
   );
-  const statusMsg = party.C2S.encode(
-    party.C2S.create({
-      data: { memberId: mId, type: 'StatusUpdate', data: statusData },
-    })
-  ).finish();
-  socket.send(statusMsg);
 };
 
 function createEmptyPlayer(id: string): PlayerState {

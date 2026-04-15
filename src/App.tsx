@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { PlayerState } from '@/types';
 import { useRuneLiteParty } from '@/hooks/useRuneLiteParty';
-import { getQtyColor } from '@/utils/itemHelpers';
 import './index.css';
 import { PlayerCard } from '@/components/PlayerCard';
 
 function App() {
   const [partyPassphrase, setPartyPassphrase] = useState('');
   const [activePartyId, setActivePartyId] = useState<string | null>(null);
-  const { players, connected, error, localMemberId } = useRuneLiteParty(activePartyId);
+  const [hiddenPlayers, setHiddenPlayers] = useState<Set<string>>(new Set());
+  const { players, connected, error, localMemberIds } = useRuneLiteParty(activePartyId);
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,13 +20,17 @@ function App() {
     setActivePartyId(null);
   };
 
+  const toggleHidePlayer = (id: string) => {
+    setHiddenPlayers((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>RuneLite Party View</h1>
-        <p>Monitor your party's inventory and stats in real-time</p>
-      </header>
-
       {!activePartyId ? (
         <form className="join-panel" onSubmit={handleJoin}>
           <input
@@ -41,33 +44,39 @@ function App() {
         </form>
       ) : (
         <div className="dashboard">
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '2rem',
-            }}
-          >
+          <div style={styles.topBar}>
             <div>
-              <span className={`status-badge ${connected ? 'connected' : 'disconnected'}`}>
-                {connected ? 'Connected' : 'Connecting...'}
-              </span>
-              <span style={{ marginLeft: '1rem', color: 'var(--text-muted)' }}>
-                Party: <strong>{activePartyId}</strong>
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span className={`status-badge ${connected ? 'connected' : 'disconnected'}`}>
+                  {connected ? 'Connected' : 'Connecting...'}
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  Party: <strong>{activePartyId}</strong>
+                </span>
+              </div>
+
+              {/* HIDDEN PLAYERS LIST */}
+              {hiddenPlayers.size > 0 && (
+                <div style={styles.hiddenList}>
+                  <span style={{ fontSize: '0.8rem', color: '#888' }}>Hidden:</span>
+                  {Array.from(hiddenPlayers).map((id) => {
+                    const playerName = players[id]?.member.name || 'Unknown';
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => toggleHidePlayer(id)}
+                        style={styles.unhideBadge}
+                        title="Click to unhide"
+                      >
+                        {playerName} <span style={{ marginLeft: '4px', opacity: 0.6 }}>+</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleDisconnect}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'rgba(255,255,255,0.1)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
+
+            <button onClick={handleDisconnect} style={styles.disconnectBtn}>
               Disconnect
             </button>
           </div>
@@ -80,9 +89,19 @@ function App() {
             )}
 
             {Object.entries(players)
-              .filter(([memberId]) => memberId !== localMemberId)
+              .filter(([id, player]) => {
+                const isObserver =
+                  player.member.name === '__web_observer__' || player.member.name === 'Loading...';
+                const isHidden = hiddenPlayers.has(id);
+                return !isObserver && !isHidden;
+              })
               .map(([memberId, player]) => (
-                <PlayerCard key={memberId} memberId={memberId} player={player} />
+                <PlayerCard
+                  key={memberId}
+                  memberId={memberId}
+                  player={player}
+                  onHide={() => toggleHidePlayer(memberId)} // Pass the callback
+                />
               ))}
           </div>
         </div>
@@ -94,11 +113,43 @@ function App() {
 export default App;
 
 const styles: Record<string, React.CSSProperties> = {
+  topBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start', // Changed from center to accommodate the list underneath
+    marginBottom: '2rem',
+  },
+  hiddenList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '10px',
+    alignItems: 'center',
+  },
+  unhideBadge: {
+    background: '#2a241c',
+    border: '1px solid #3e3529',
+    color: '#aaa',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'border-color 0.2s, color 0.2s',
+  },
+  disconnectBtn: {
+    padding: '0.5rem 1rem',
+    background: 'rgba(255,255,255,0.1)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
   playersGrid: {
     display: 'grid',
-    // This allows cards to sit side-by-side if there's room
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: '1.5rem',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: '0.5rem',
     alignItems: 'start',
     width: '100%',
   },
