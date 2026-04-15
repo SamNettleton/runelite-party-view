@@ -24,6 +24,7 @@ const SKILL_NAMES = [
   'runecraft',
   'hunter',
   'construction',
+  'sailing',
 ];
 
 export function updatePlayerFromData(existing: PlayerState, type: string, data: any): PlayerState {
@@ -34,7 +35,6 @@ export function updatePlayerFromData(existing: PlayerState, type: string, data: 
     if (data.n) next.member.name = data.n;
     if (data.c) next.member.color = data.c;
 
-    // Support both SkillValue objects and legacy flat numbers
     if (data.hc !== undefined)
       stats.hitpoints = { current: data.hc, base: stats.hitpoints?.base ?? 99 };
     if (data.hm !== undefined)
@@ -48,6 +48,7 @@ export function updatePlayerFromData(existing: PlayerState, type: string, data: 
   }
 
   if (type === 'PartyBatchedChange') {
+    console.log('Batched update received:', data);
     // Stats/Misc
     if (Array.isArray(data.m)) {
       data.m.forEach((u: any) => {
@@ -90,8 +91,13 @@ export function updatePlayerFromData(existing: PlayerState, type: string, data: 
     if (Array.isArray(data.s)) {
       data.s.forEach((sData: { s: number; l: number; b: number }) => {
         const name = SKILL_NAMES[sData.s];
-        if (name) stats[name] = { current: sData.l, base: sData.b };
+        if (name) stats[name] = { base: Math.min(sData.l, 99), current: sData.b };
       });
+    }
+
+    // data.ep is the number representing active prayers
+    if (data.ep !== undefined) {
+      next.prayerMask = data.ep;
     }
   }
 

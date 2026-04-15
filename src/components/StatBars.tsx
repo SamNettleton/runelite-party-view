@@ -12,7 +12,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="HP"
           />
-          {stats.hitpoints.current}
+          <span style={styles.value}>{stats.hitpoints.current}</span>
         </div>
       )}
       {stats.prayer && (
@@ -22,7 +22,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="Pray"
           />
-          {stats.prayer.current}
+          <span style={styles.value}>{stats.prayer.current}</span>
         </div>
       )}
       {stats.runEnergy !== undefined && (
@@ -32,7 +32,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="Run"
           />
-          {stats.runEnergy}
+          <span style={styles.value}>{stats.runEnergy}</span>
         </div>
       )}
       {stats.spec !== undefined && (
@@ -42,7 +42,7 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
             style={styles.icon}
             alt="Spec"
           />
-          {stats.spec}
+          <span style={styles.value}>{stats.spec}</span>
         </div>
       )}
     </div>
@@ -50,16 +50,34 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  container: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '1rem' },
+  container: {
+    display: 'flex',
+    flexWrap: 'nowrap', // FORCE single line
+    gap: '4px', // Tighter gap
+    marginBottom: '1rem',
+    justifyContent: 'center',
+    width: '100%',
+  },
   pill: {
     fontSize: '0.8rem',
-    padding: '2px 6px',
+    padding: '2px 4px',
     borderRadius: '4px',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
+    gap: '3px',
+    minWidth: '42px', // Keeps width consistent for 1, 2, or 3 digits
+    justifyContent: 'center',
   },
-  icon: { width: '16px', height: '16px' },
+  value: {
+    fontWeight: 'bold',
+    textAlign: 'center',
+    flex: 1, // Ensures the number stays centered in the remaining space
+  },
+  icon: {
+    width: '14px', // Slightly smaller to save space
+    height: '14px',
+    flexShrink: 0,
+  },
 };

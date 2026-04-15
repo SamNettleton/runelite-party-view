@@ -6,6 +6,7 @@ import { StatBars } from './StatBars';
 import { SkillsGrid } from './SkillsGrid';
 
 import wornEquipmentIcon from '@/assets/Worn_Equipment.png';
+import { PrayerGrid } from './PrayerGrid';
 
 interface PlayerCardProps {
   memberId: string;
@@ -48,12 +49,11 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
               height="18"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#D1D1D1" // UPDATED: Light grey stroke color
+              stroke="#D1D1D1"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              {/* UPDATED: Path now only contains the eye, no line x1="..." */}
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
             </svg>
@@ -84,11 +84,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
         {activeView === 'inventory' && <InventoryGrid items={player.inventory} />}
         {activeView === 'equipment' && <EquipmentGrid items={player.equipment} />}
         {activeView === 'skills' && <SkillsGrid stats={player.stats} />}
-        {activeView === 'prayer' && (
-          <div style={styles.placeholder}>
-            <p>Prayer Grid Coming Soon</p>
-          </div>
-        )}
+        {activeView === 'prayer' && <PrayerGrid ep={player.prayerMask} />}
       </div>
     </div>
   );
@@ -139,7 +135,6 @@ const styles: Record<string, React.CSSProperties> = {
   buttonGroup: {
     display: 'flex',
     gap: '2px',
-    marginTop: '12px',
     marginBottom: '8px',
     justifyContent: 'center',
     backgroundColor: '#2a241c',

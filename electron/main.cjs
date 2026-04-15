@@ -3,10 +3,11 @@ const { join } = require('node:path');
 
 function createMainWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1200,
+    width: 700,
     height: 800,
-    minWidth: 900,
-    minHeight: 600,
+    minWidth: 320,
+    minHeight: 625,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
       nodeIntegration: false,

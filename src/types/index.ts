@@ -25,8 +25,6 @@ export interface PlayerStats {
   runEnergy?: number;
   spec?: number;
 
-  // Dynamic skills (attack, strength, etc.)
-  // and legacy fallbacks
   [key: string]: SkillValue | number | undefined;
 }
 
@@ -38,4 +36,5 @@ export interface PlayerState {
   world?: number;
   combatLevel?: number;
   [key: string]: any;
+  prayerMask?: number;
 }

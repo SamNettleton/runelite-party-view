@@ -19,7 +19,7 @@ export function useRuneLiteParty(partyIdStr: string | null) {
   const errorARef = useRef<string | null>(null);
   const errorBRef = useRef<string | null>(null);
 
-  // CRITICAL: Two separate IDs to bypass the 1008 "Member Resumed" error
+  // Two separate IDs to bypass the 1008 "Member Resumed" error
   const memberIdARef = useRef<number>(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
   const memberIdBRef = useRef<number>(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
 
@@ -127,7 +127,7 @@ export function useRuneLiteParty(partyIdStr: string | null) {
     return () => {
       isComponentMounted = false;
       clearTimeout(shadowTimer);
-      if (socketARef.current) socketARef.current.onclose = null; // Prevent reconnect on unmount
+      if (socketARef.current) socketARef.current.onclose = null;
       if (socketBRef.current) socketBRef.current.onclose = null;
       socketARef.current?.close();
       socketBRef.current?.close();
@@ -147,12 +147,8 @@ export function useRuneLiteParty(partyIdStr: string | null) {
     players,
     connected,
     error,
-    // Expose both IDs so App.tsx can filter both out
-    localMemberIds: [memberIdARef.current.toString(), memberIdBRef.current.toString()],
   };
 }
-
-// --- Helper Functions ---
 
 async function getPartyIdNumeric(passphrase: string): Promise<string> {
   const encoder = new TextEncoder();
