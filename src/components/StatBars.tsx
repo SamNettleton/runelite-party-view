@@ -52,8 +52,8 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
-    flexWrap: 'nowrap', // FORCE single line
-    gap: '4px', // Tighter gap
+    flexWrap: 'nowrap',
+    gap: '4px',
     marginBottom: '1rem',
     justifyContent: 'center',
     width: '100%',
@@ -67,16 +67,16 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '3px',
-    minWidth: '42px', // Keeps width consistent for 1, 2, or 3 digits
+    minWidth: '42px',
     justifyContent: 'center',
   },
   value: {
     fontWeight: 'bold',
     textAlign: 'center',
-    flex: 1, // Ensures the number stays centered in the remaining space
+    flex: 1,
   },
   icon: {
-    width: '14px', // Slightly smaller to save space
+    width: '14px',
     height: '14px',
     flexShrink: 0,
   },

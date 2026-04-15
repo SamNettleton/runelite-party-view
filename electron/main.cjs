@@ -1,5 +1,5 @@
 const { app, BrowserWindow } = require('electron');
-const { join } = require('node:path');
+const path = require('path');
 
 function createMainWindow() {
   const mainWindow = new BrowserWindow({
@@ -8,19 +8,27 @@ function createMainWindow() {
     minWidth: 320,
     minHeight: 625,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'build/icon.png'),
+    // Ensure this path is correct relative to where main.cjs lives
+    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
-      preload: join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  if (process.env.VITE_DEV_SERVER_URL) {
+  // Priority 1: If packaged, load the local dist file
+  if (app.isPackaged) {
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+  // Priority 2: If running via Vite dev server
+  else if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
-  } else {
-    mainWindow.loadFile(join(__dirname, '../dist/index.html'));
+  }
+  // Fallback: Try to load the dist file if the dev server isn't found
+  else {
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }
 
