@@ -7,7 +7,7 @@ function App() {
   const [partyPassphrase, setPartyPassphrase] = useState('');
   const [activePartyId, setActivePartyId] = useState<string | null>(null);
   const [hiddenPlayers, setHiddenPlayers] = useState<Set<string>>(new Set());
-  const { players, connected, error, localMemberIds } = useRuneLiteParty(activePartyId);
+  const { players, connected, error } = useRuneLiteParty(activePartyId);
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,0 +1,40 @@
+name: Build/Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger only when you push a tag (e.g., git tag v1.0.0)
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        # Build on both Ubuntu and Windows runners
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Vite App
+        run: npm run build
+
+      - name: Build/Release Electron App
+        uses: samuelmeuli/action-electron-builder@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          draft: true

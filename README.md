@@ -48,3 +48,19 @@ export default tseslint.config({
   },
 })
 ```
+
+## Electron / Desktop Build
+
+This project now includes an Electron shell for local desktop distribution.
+
+### Run locally in Electron
+
+- Install dependencies: `npm install`
+- Start Vite + Electron: `npm run electron:dev`
+
+### Build a distributable app
+
+- Build the renderer: `npm run build`
+- Package the app: `npm run package`
+
+The Electron entrypoint is in `electron/main.js`, and the renderer is loaded from `dist/index.html`.

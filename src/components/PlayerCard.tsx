@@ -36,7 +36,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
   ];
 
   return (
-    <div style={styles.playerCard}>
+    <div style={styles.playerCard} data-member-id={memberId}>
       <div style={styles.cardHeader}>
         <div style={styles.headerFlex}>
           <h3 style={{ color: nameColor, margin: 0 }}>
