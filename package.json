@@ -1,7 +1,7 @@
 {
   "name": "runelite-party-view",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A live party view for RuneLite",
   "author": "Sam Nettleton",
   "repository": {
@@ -81,6 +81,7 @@
           ]
         }
       ],
+      "publisherName": "Sam Nettleton",
       "icon": "build/icon.ico"
     },
     "nsis": {
@@ -93,6 +94,7 @@
         "AppImage",
         "deb"
       ],
+      "maintainer": "Sam Nettleton <nettleton.sam@gmail.com>",
       "category": "Utility",
       "icon": "build/icon.png"
     }
