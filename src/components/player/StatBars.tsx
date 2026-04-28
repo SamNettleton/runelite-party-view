@@ -25,24 +25,24 @@ export const StatBars: React.FC<{ stats?: PlayerStats }> = ({ stats }) => {
           <span style={styles.value}>{stats.prayer.current}</span>
         </div>
       )}
-      {stats.runEnergy !== undefined && (
-        <div style={{ ...styles.pill, color: '#ffff66' }}>
-          <img
-            src="https://oldschool.runescape.wiki/images/Leather_boots_detail.png"
-            style={styles.icon}
-            alt="Run"
-          />
-          <span style={styles.value}>{stats.runEnergy}</span>
-        </div>
-      )}
       {stats.spec !== undefined && (
-        <div style={{ ...styles.pill, color: '#009d8e' }}>
+        <div style={{ ...styles.pill, color: '#01b9a7' }}>
           <img
             src="https://oldschool.runescape.wiki/images/Multicombat.png"
             style={styles.icon}
             alt="Spec"
           />
           <span style={styles.value}>{stats.spec}</span>
+        </div>
+      )}
+      {stats.runEnergy !== undefined && (
+        <div style={{ ...styles.pill, color: '#e8e800' }}>
+          <img
+            src="https://oldschool.runescape.wiki/images/Leather_boots_detail.png"
+            style={styles.icon}
+            alt="Run"
+          />
+          <span style={styles.value}>{stats.runEnergy}</span>
         </div>
       )}
     </div>

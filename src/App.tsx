@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRuneLiteParty } from '@/hooks/useRuneLiteParty';
-import { PlayerCard } from '@/components/player/PlayerCard';
 import { JoinScreen } from '@/components/party/JoinScreen';
 import { PartyTopBar } from '@/components/party/PartyTopBar';
 import { HiddenPlayersList } from '@/components/party/HiddenPlayersList';
+import { PlayerGrid } from '@/components/party/PlayerGrid';
+import { initItemDatabase } from '@/utils/itemResolver';
 import './index.css';
 
 function App() {
+  useEffect(() => {
+    initItemDatabase();
+  }, []);
   const [activePartyId, setActivePartyId] = useState<string | null>(null);
   const [hiddenPlayers, setHiddenPlayers] = useState<Set<string>>(new Set());
   const { players, connected, error } = useRuneLiteParty(activePartyId);
@@ -28,6 +32,10 @@ function App() {
     );
   }
 
+  const hasPlayers = Object.values(players).some(
+    (p) => !p.member.name?.toLowerCase().includes('observer') && p.member.name !== 'Loading...'
+  );
+
   return (
     <div style={styles.appContainer}>
       <div style={{ marginTop: '2rem' }}>
@@ -45,27 +53,11 @@ function App() {
 
         {error && <div style={styles.errorMessage}>{error}</div>}
 
-        <div style={styles.playersGrid}>
-          {Object.values(players).length === 0 && connected && !error && (
-            <p style={styles.waitingMessage}>Waiting for players to sync...</p>
-          )}
-
-          {Object.entries(players)
-            .filter(([id, player]) => {
-              const isObserver =
-                player.member.name === '__web_observer__' || player.member.name === 'Loading...';
-              const isHidden = hiddenPlayers.has(id);
-              return !isObserver && !isHidden;
-            })
-            .map(([memberId, player]) => (
-              <PlayerCard
-                key={memberId}
-                memberId={memberId}
-                player={player}
-                onHide={() => toggleHidePlayer(memberId)}
-              />
-            ))}
-        </div>
+        {!hasPlayers && connected && !error ? (
+          <p style={styles.waitingMessage}>Waiting for players to sync...</p>
+        ) : (
+          <PlayerGrid players={players} hiddenIds={hiddenPlayers} onHidePlayer={toggleHidePlayer} />
+        )}
       </div>
     </div>
   );
@@ -75,7 +67,7 @@ export default App;
 
 const styles: Record<string, React.CSSProperties> = {
   appContainer: {
-    maxWidth: '1200px',
+    maxWidth: '95vw',
     margin: '0 auto',
     padding: '1rem',
   },
@@ -87,17 +79,10 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(239, 68, 68, 0.1)',
     borderRadius: '6px',
   },
-  playersGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '0.5rem',
-    alignItems: 'start',
-    width: '100%',
-  },
   waitingMessage: {
     color: '#94a3b8',
     textAlign: 'center',
     width: '100%',
-    gridColumn: '1 / -1',
+    marginTop: '2rem',
   },
 };

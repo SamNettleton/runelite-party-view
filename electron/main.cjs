@@ -4,9 +4,9 @@ const path = require('path');
 function createMainWindow() {
   const mainWindow = new BrowserWindow({
     width: 700,
-    height: 800,
+    height: 600,
     minWidth: 320,
-    minHeight: 625,
+    minHeight: 325,
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {

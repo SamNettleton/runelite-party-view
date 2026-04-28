@@ -18,7 +18,7 @@ export const JoinScreen: React.FC<JoinScreenProps> = ({ onJoin }) => {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <h1 style={styles.title}>RuneLite Party View</h1>
-        <p style={styles.subtitle}>Monitor your team's vitals in real-time</p>
+        <p style={styles.subtitle}>Monitor your team's party hub information</p>
       </header>
 
       <form style={styles.joinPanel} onSubmit={handleSubmit}>
@@ -52,9 +52,7 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: '2.5rem',
     marginBottom: '0.5rem',
-    background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
+    color: '#00e66b',
   },
   subtitle: {
     color: '#94a3b8',
@@ -82,8 +80,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   joinButton: {
     padding: '0.75rem 1rem',
-    background: '#3b82f6',
-    color: 'white',
+    background: '#00e66b',
+    color: 'black',
     border: 'none',
     borderRadius: '6px',
     fontSize: '1rem',

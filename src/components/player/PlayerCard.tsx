@@ -12,22 +12,37 @@ interface PlayerCardProps {
   memberId: string;
   player: PlayerState;
   onHide: () => void;
+  dndRef?: (element: HTMLElement | null) => void;
+  dndStyle?: React.CSSProperties;
+  dragHandleProps?: any;
 }
 
 type GridView = 'inventory' | 'equipment' | 'skills' | 'prayer';
 
-export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide }) => {
-  const [activeView, setActiveView] = useState<GridView>('inventory');
-
+export const PlayerCard: React.FC<PlayerCardProps> = ({
+  memberId,
+  player,
+  onHide,
+  dndRef,
+  dndStyle,
+  dragHandleProps,
+}) => {
+  const [activeViews, setActiveViews] = useState<GridView[]>(['inventory']);
   const nameColor = player.member.color ? player.member.color.substring(0, 7) : '#fff';
+
+  const toggleView = (view: GridView) => {
+    setActiveViews((prev) => {
+      if (prev.includes(view)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((v) => v !== view);
+      }
+      return [...prev, view];
+    });
+  };
 
   const tabs = [
     { id: 'inventory', icon: 'https://oldschool.runescape.wiki/images/Inventory.png', alt: 'Inv' },
-    {
-      id: 'equipment',
-      icon: wornEquipmentIcon,
-      alt: 'Equip',
-    },
+    { id: 'equipment', icon: wornEquipmentIcon, alt: 'Equip' },
     {
       id: 'prayer',
       icon: 'https://oldschool.runescape.wiki/images/Prayer_icon_%28detail%29.png',
@@ -37,13 +52,37 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
   ];
 
   return (
-    <div style={styles.playerCard} data-member-id={memberId}>
+    <div
+      ref={dndRef}
+      style={{
+        ...styles.playerCard,
+        ...dndStyle,
+        width: `${activeViews.length * 225 + 20}px`,
+      }}
+      data-member-id={memberId}
+    >
       <div style={styles.cardHeader}>
         <div style={styles.headerFlex}>
-          <h3 style={{ color: nameColor, margin: 0, fontSize: '0.8rem' }}>
-            {player.member.name || 'Unknown Player'} (level-{player.combatLevel})
-          </h3>
-          <button onClick={onHide} style={styles.hideButton} title="Hide Player">
+          <div style={styles.dragHandleArea} {...dragHandleProps}>
+            {/* Fixed-color drag icon that spans the height of the name/level block */}
+            <div style={styles.dragIcon}>⠿</div>
+
+            <div style={styles.nameContainer}>
+              <h3 style={{ ...styles.nameText, color: nameColor }}>
+                {player.member.name || 'Unknown Player'}
+              </h3>
+              <span style={styles.levelText}>Level {player.combatLevel}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHide();
+            }}
+            style={styles.hideButton}
+            title="Hide Player"
+          >
             <svg
               width="18"
               height="18"
@@ -69,10 +108,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveView(tab.id as GridView)}
+            onClick={() => toggleView(tab.id as GridView)}
             style={{
               ...styles.button,
-              ...(activeView === tab.id ? styles.activeButton : {}),
+              ...(activeViews.includes(tab.id as GridView) ? styles.activeButton : {}),
             }}
           >
             <img src={tab.icon} alt={tab.alt} style={styles.tabIcon} />
@@ -81,10 +120,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
       </div>
 
       <div style={styles.gridContainer}>
-        {activeView === 'inventory' && <InventoryGrid items={player.inventory} />}
-        {activeView === 'equipment' && <EquipmentGrid items={player.equipment} />}
-        {activeView === 'skills' && <SkillsGrid stats={player.stats} />}
-        {activeView === 'prayer' && <PrayerGrid ep={player.prayerMask} />}
+        {activeViews.includes('inventory') && <InventoryGrid items={player.inventory} />}
+        {activeViews.includes('equipment') && <EquipmentGrid items={player.equipment} />}
+        {activeViews.includes('prayer') && <PrayerGrid ep={player.prayerMask} />}
+        {activeViews.includes('skills') && <SkillsGrid stats={player.stats} />}
       </div>
     </div>
   );
@@ -92,24 +131,74 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ memberId, player, onHide
 
 const styles: Record<string, React.CSSProperties> = {
   playerCard: {
-    width: '243px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    padding: '12px 10px',
+    backgroundColor: '#1e1e1e',
+    border: '1px solid #4a4a4a',
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+    transition: 'width 0.3s ease, transform 0.1s ease',
+    flex: '0 0 auto',
     margin: '0 auto',
   },
   cardHeader: {
-    textAlign: 'center',
     marginBottom: '12px',
     width: '100%',
   },
   headerFlex: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '6px',
+    alignItems: 'center', // Center the button vertically relative to the name block
+    justifyContent: 'space-between',
     width: '100%',
-    padding: '0 4px',
+    padding: '0 8px',
+    boxSizing: 'border-box',
+    gap: '8px',
+  },
+  dragHandleArea: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: '6px 10px',
+    borderRadius: '4px',
+    cursor: 'grab',
+    flex: 1,
+    minWidth: 0,
+    gap: '10px',
+  },
+  dragIcon: {
+    color: '#666',
+    fontSize: '1.2rem',
+    lineHeight: '1',
+    display: 'flex',
+    alignItems: 'center',
+    userSelect: 'none',
+  },
+  nameContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    minWidth: 0,
+    flex: 1,
+  },
+  nameText: {
+    margin: 0,
+    fontSize: '0.85rem',
+    lineHeight: '1.2',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    width: '100%',
+    fontWeight: 'bold',
+  },
+  levelText: {
+    fontSize: '0.65rem',
+    color: '#aaa',
+    lineHeight: '1.2',
+    letterSpacing: '0.02rem',
   },
   hideButton: {
     background: 'transparent',
@@ -118,10 +207,11 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2px',
+    padding: '4px',
     borderRadius: '4px',
-    transition: 'opacity 0.2s',
     opacity: 0.6,
+    flexShrink: 0,
+    transition: 'opacity 0.2s',
   },
   memberId: {
     fontSize: '0.75rem',
@@ -168,12 +258,12 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'flex-start',
-    minHeight: '365px',
+    minHeight: '344px',
     width: '100%',
   },
   placeholder: {
-    width: '243px',
-    height: '365px',
+    width: '215px',
+    height: '344px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
