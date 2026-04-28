@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { PlayerState } from '@/types';
-import { InventoryGrid } from './InventoryGrid';
-import { EquipmentGrid } from './EquipmentGrid';
-import { StatBars } from './StatBars';
-import { SkillsGrid } from './SkillsGrid';
+import { InventoryGrid } from '@/components/player/InventoryGrid';
+import { EquipmentGrid } from '@/components/player/EquipmentGrid';
+import { StatBars } from '@/components/player/StatBars';
+import { SkillsGrid } from '@/components/player/SkillsGrid';
 
 import wornEquipmentIcon from '@/assets/Worn_Equipment.png';
-import { PrayerGrid } from './PrayerGrid';
+import { PrayerGrid } from '@/components/player/PrayerGrid';
 
 interface PlayerCardProps {
   memberId: string;

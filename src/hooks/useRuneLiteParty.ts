@@ -19,6 +19,13 @@ export function useRuneLiteParty(partyIdStr: string | null) {
   const isComponentMounted = useRef(true);
   const socketVersion = useRef(0);
 
+  /**
+   * Opens a versioned WebSocket connection to the RuneLite party server.
+   *
+   * The `version` number ensures stale sockets from previous connection
+   * attempts are ignored — each handler checks `version === socketVersion.current`
+   * before acting, so only the most recent socket drives state updates.
+   */
   const createSocket = async (partyId: string, version: number) => {
     if (!isComponentMounted.current || version !== socketVersion.current) return;
 
@@ -47,21 +54,7 @@ export function useRuneLiteParty(partyIdStr: string | null) {
       ws.onclose = (event) => {
         if (isComponentMounted.current && version === socketVersion.current) {
           setConnected(false);
-
-          // If kicked for expiry (1008), refresh the ID to ensure a clean session
-          if (event.code === 1008) {
-            console.log(`[Socket v${version}] Session expired. Refreshing Member ID.`);
-            memberIdRef.current = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
-          }
-
-          console.log(`[Socket v${version}] Closed (${event.code}). Reconnecting in 3s...`);
-
-          // We trigger a new connection by incrementing the version
-          setTimeout(() => {
-            if (isComponentMounted.current && partyIdStr) {
-              initConnection(partyId);
-            }
-          }, 3000);
+          scheduleReconnect(event.code, partyId);
         }
       };
 
@@ -69,6 +62,23 @@ export function useRuneLiteParty(partyIdStr: string | null) {
     } catch (e: any) {
       setError(`System Error: ${e.message}`);
     }
+  };
+
+  /**
+   * Handles reconnection after a socket close.
+   * Regenerates memberId on policy-violation closes (1008) to avoid
+   * the server rejecting duplicate IDs.
+   */
+  const scheduleReconnect = (closeCode: number, partyId: string) => {
+    if (closeCode === 1008) {
+      memberIdRef.current = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    }
+
+    setTimeout(() => {
+      if (isComponentMounted.current && partyIdStr) {
+        initConnection(partyId);
+      }
+    }, 3000);
   };
 
   const initConnection = (partyId: string) => {
@@ -143,7 +153,11 @@ export function useRuneLiteParty(partyIdStr: string | null) {
   };
 }
 
-async function getPartyIdNumeric(passphrase: string): Promise<string> {
+/**
+ * Hashes a passphrase into the numeric party ID that the RuneLite
+ * server expects (SHA-256 → first 8 bytes as a positive i64).
+ */
+export async function getPartyIdNumeric(passphrase: string): Promise<string> {
   const encoder = new TextEncoder();
   const hash = await crypto.subtle.digest('SHA-256', encoder.encode(passphrase));
   const hashArray = new Uint8Array(hash);
@@ -152,32 +166,15 @@ async function getPartyIdNumeric(passphrase: string): Promise<string> {
   return (rawLong & 0x7fffffffffffffffn).toString();
 }
 
-const sendHandshake = (ws: WebSocket, partyId: string, memberId: number) => {
+export const sendHandshake = (ws: WebSocket, partyId: string, memberId: number) => {
   if (ws.readyState !== WebSocket.OPEN) return;
   const mId = Long.fromNumber(memberId, false);
   const pId = Long.fromString(partyId, false);
-  // const encoder = new TextEncoder();
 
   ws.send(party.C2S.encode(party.C2S.create({ join: { partyId: pId, memberId: mId } })).finish());
-
-  // // This triggers the other clients to broadcast their data,
-  // // but avoids providing the 'name' or 'world' keys that trigger the overhead name flicker.
-  // const syncData = {};
-
-  // ws.send(
-  //   party.C2S.encode(
-  //     party.C2S.create({
-  //       data: {
-  //         memberId: mId,
-  //         type: 'UserSync',
-  //         data: encoder.encode(JSON.stringify(syncData)),
-  //       },
-  //     })
-  //   ).finish()
-  // );
 };
 
-function createEmptyPlayer(id: string): PlayerState {
+export function createEmptyPlayer(id: string): PlayerState {
   return {
     member: { memberId: id, name: 'Loading...' },
     stats: {},

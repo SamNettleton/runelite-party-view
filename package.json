@@ -17,6 +17,7 @@
     "preview": "vite preview",
     "package": "npm run build && electron-builder",
     "lint": "eslint .",
+    "test": "vitest run",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "proto:js": "pbjs -t static-module -w es6 -o src/hooks/party_pb.js src/hooks/party.proto",
     "proto:ts": "pbts -o src/hooks/party_pb.d.ts src/hooks/party_pb.js",
@@ -52,6 +53,7 @@
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.11.0",
     "vite": "^5.4.10",
+    "vitest": "^4.1.5",
     "wait-on": "^7.0.1"
   },
   "build": {
