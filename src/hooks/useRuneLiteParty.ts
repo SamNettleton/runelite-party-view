@@ -36,7 +36,7 @@ export function useRuneLiteParty(partyIdStr: string | null) {
         console.log(`[Socket v${version}] ✅ Connected. Handshaking...`);
         setConnected(true);
         setError(null);
-        sendHandshake(ws, partyId, memberIdRef.current, 'Web Observer');
+        sendHandshake(ws, partyId, memberIdRef.current);
       };
 
       ws.onmessage = (event) => {
@@ -152,11 +152,11 @@ async function getPartyIdNumeric(passphrase: string): Promise<string> {
   return (rawLong & 0x7fffffffffffffffn).toString();
 }
 
-const sendHandshake = (ws: WebSocket, partyId: string, memberId: number, name: string) => {
+const sendHandshake = (ws: WebSocket, partyId: string, memberId: number) => {
   if (ws.readyState !== WebSocket.OPEN) return;
   const mId = Long.fromNumber(memberId, false);
   const pId = Long.fromString(partyId, false);
-  const encoder = new TextEncoder();
+  // const encoder = new TextEncoder();
 
   ws.send(party.C2S.encode(party.C2S.create({ join: { partyId: pId, memberId: mId } })).finish());
 
