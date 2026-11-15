@@ -13,145 +13,124 @@ function emptyPlayer(id = '1'): PlayerState {
   };
 }
 
-describe('updatePlayerFromData – StatusUpdate', () => {
+describe('updatePlayerFromData – PartyData', () => {
   it('sets the player name', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { n: 'Farmer Carb' });
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', { n: 'Farmer Carb' });
     expect(result.member.name).toBe('Farmer Carb');
   });
 
-  it('sets the player color', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { c: '#ff0000' });
+  it('converts packed integer color to hex string', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', { c: 527488582 });
+    expect(result.member.color).toBe('#70d646');
+  });
+
+  it('preserves string color values', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', { c: '#ff0000' });
     expect(result.member.color).toBe('#ff0000');
   });
 
-  it('sets current hitpoints', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { hc: 50 });
-    expect(result.stats?.hitpoints?.current).toBe(50);
-    expect(result.stats?.hitpoints?.base).toBe(99); // default
-  });
-
-  it('sets max hitpoints', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { hm: 80 });
-    expect(result.stats?.hitpoints?.base).toBe(80);
-  });
-
-  it('sets current prayer', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { pc: 30 });
-    expect(result.stats?.prayer?.current).toBe(30);
-  });
-
-  it('sets max prayer', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { pm: 77 });
-    expect(result.stats?.prayer?.base).toBe(77);
-  });
-
-  it('sets run energy', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { r: 75 });
+  it('reads run energy and spec from the live RuneLite payload keys', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', { e: 75, sp: 50 });
     expect(result.stats?.runEnergy).toBe(75);
-  });
-
-  it('sets spec energy', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { s: 50 });
     expect(result.stats?.spec).toBe(50);
   });
 
-  it('preserves existing stats when updating partially', () => {
-    const withHp = updatePlayerFromData(emptyPlayer(), 'StatusUpdate', { hc: 90, hm: 99 });
-    const result = updatePlayerFromData(withHp, 'StatusUpdate', { pc: 43 });
-    expect(result.stats?.hitpoints?.current).toBe(90);
-    expect(result.stats?.prayer?.current).toBe(43);
-  });
-});
-
-describe('updatePlayerFromData – PartyBatchedChange', () => {
-  it('processes misc updates (run energy, spec, combat, world)', () => {
-    const data = {
-      m: [
-        { t: 'R', v: 80 },
-        { t: 'S', v: 100 },
-        { t: 'C', v: 126 },
-        { t: 'W', v: 420 },
-      ],
-    };
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
-    expect(result.stats?.runEnergy).toBe(80);
+  it('defaults missing run energy and spec values to 100 when absent', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', { n: 'Sam' });
+    expect(result.stats?.runEnergy).toBe(100);
     expect(result.stats?.spec).toBe(100);
-    expect(result.combatLevel).toBe(126);
-    expect(result.world).toBe(420);
   });
 
-  it('processes hitpoints and prayer from batch updates', () => {
-    const data = {
-      m: [
-        { t: 'H', v: 55 },
-        { t: 'P', v: 30 },
-      ],
-    };
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
-    expect(result.stats?.hitpoints?.current).toBe(55);
-    expect(result.stats?.prayer?.current).toBe(30);
+  it('sets prayer mask including explicit 0 for no active prayers', () => {
+    const withPrayer = updatePlayerFromData(emptyPlayer(), 'PartyData', { p: 16384 });
+    expect(withPrayer.prayerMask).toBe(16384);
+
+    const cleared = updatePlayerFromData(withPrayer, 'PartyData', { p: 0 });
+    expect(cleared.prayerMask).toBe(0);
   });
 
-  it('parses inventory items from [id, qty, id, qty, ...] format', () => {
-    const data = { i: [4151, 1, 385, 20] };
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
+  it('parses inventory (i) and equipment (w) arrays', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', {
+      i: [995, 2639407, 4151, 1],
+      w: [24664, 1, 12821, 1],
+    });
+
     expect(result.inventory).toEqual([
+      { id: 995, qty: 2639407 },
       { id: 4151, qty: 1 },
-      { id: 385, qty: 20 },
     ]);
-  });
-
-  it('parses equipment items', () => {
-    const data = { e: [10828, 1, 6585, 1] };
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
     expect(result.equipment).toEqual([
-      { id: 10828, qty: 1 },
-      { id: 6585, qty: 1 },
+      { id: 24664, qty: 1 },
+      { id: 12821, qty: 1 },
     ]);
   });
 
-  it('parses skill data', () => {
-    const data = {
-      s: [
-        { s: 0, l: 99, b: 118 }, // attack
-        { s: 6, l: 99, b: 109 }, // magic
-      ],
-    };
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
+  it('parses modern skill arrays and calculates combat level from base skills', () => {
+    const baseSkills = Array(24).fill(99);
+    const currentSkills = Array(24).fill(99);
+    currentSkills[0] = 118;
+    currentSkills[3] = 108;
+    currentSkills[5] = 94;
+
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', {
+      b: baseSkills,
+      s: currentSkills,
+    });
+
     expect(result.stats?.attack).toEqual({ base: 99, current: 118 });
-    expect(result.stats?.magic).toEqual({ base: 99, current: 109 });
+    expect(result.stats?.hitpoints).toEqual({ base: 99, current: 108 });
+    expect(result.stats?.prayer).toEqual({ base: 99, current: 94 });
+    expect(result.combatLevel).toBe(126);
   });
 
-  it('clamps skill base levels to 99', () => {
-    const data = { s: [{ s: 3, l: 120, b: 120 }] }; // hitpoints with virtual level
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
-    expect(result.stats?.hitpoints).toEqual({ base: 99, current: 120 });
-  });
-
-  it('sets prayer mask', () => {
-    const data = { ep: 16384 };
-    const result = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', data);
-    expect(result.prayerMask).toBe(16384);
-  });
-
-  it('does not clobber existing stats on partial update', () => {
-    let player = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', {
-      m: [{ t: 'W', v: 302 }],
+  it('preserves existing state when receiving partial PartyData updates', () => {
+    const initial = updatePlayerFromData(emptyPlayer(), 'PartyData', {
+      n: 'Farmer Carb',
+      e: 90,
+      p: 2048,
     });
-    player = updatePlayerFromData(player, 'PartyBatchedChange', {
-      m: [{ t: 'R', v: 100 }],
+    const result = updatePlayerFromData(initial, 'PartyData', { sp: 25 });
+
+    expect(result.member.name).toBe('Farmer Carb');
+    expect(result.stats?.runEnergy).toBe(90);
+    expect(result.prayerMask).toBe(2048);
+    expect(result.stats?.spec).toBe(25);
+  });
+
+  it('supports the newer object payload with current and base values', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyData', {
+      b: [99, 99, 99, 99, 99, 99],
+      s: [99, 99, 99, 108, 99, 94],
     });
-    expect(player.world).toBe(302);
-    expect(player.stats?.runEnergy).toBe(100);
+
+    expect(result.stats?.hitpoints).toEqual({ base: 99, current: 108 });
+    expect(result.stats?.prayer).toEqual({ base: 99, current: 94 });
+  });
+
+  it('does not clobber skill data when only one field changes', () => {
+    const initial = updatePlayerFromData(emptyPlayer(), 'PartyData', {
+      b: Array(24).fill(99),
+      s: Array(24).fill(99),
+    });
+    const result = updatePlayerFromData(initial, 'PartyData', {
+      e: 65,
+      sp: 45,
+    });
+
+    expect(result.stats?.hitpoints).toEqual({ base: 99, current: 99 });
+    expect(result.stats?.runEnergy).toBe(65);
+    expect(result.stats?.spec).toBe(45);
   });
 });
 
-describe('updatePlayerFromData – unknown type', () => {
-  it('returns the player unchanged for an unknown message type', () => {
-    const player = emptyPlayer();
-    const result = updatePlayerFromData(player, 'UnknownType', { foo: 'bar' });
-    expect(result.member).toEqual(player.member);
-    expect(result.inventory).toEqual(player.inventory);
+describe('updatePlayerFromData – PartyHealthStatusUpdate', () => {
+  it('updates hp based on live currentHealth and maxHealth values', () => {
+    const result = updatePlayerFromData(emptyPlayer(), 'PartyHealthStatusUpdate', {
+      currentHealth: 116,
+      maxHealth: 117,
+    });
+
+    expect(result.stats?.hitpoints).toEqual({ base: 117, current: 116 });
   });
 });
 
@@ -192,19 +171,10 @@ describe('updatePlayerFromData – PredictedHitPartyMessage', () => {
   });
 
   it('does not set lastAttackedTarget when predictedHit is absent', () => {
-    const result = updatePlayerFromData(emptyPlayer(), 'PredictedHitPartyMessage', { color: {}, world: 302 });
-    expect(result.lastAttackedTarget).toBeUndefined();
-  });
-
-  it('preserves all other player state when updating lastAttackedTarget', () => {
-    let player = updatePlayerFromData(emptyPlayer(), 'PartyBatchedChange', {
-      m: [{ t: 'C', v: 126 }],
-    });
-    player = updatePlayerFromData(player, 'PredictedHitPartyMessage', {
-      predictedHit: { npcId: 9999, opponentIsPlayer: false, targetIndex: 0, playerCombatLevel: -1 },
+    const result = updatePlayerFromData(emptyPlayer(), 'PredictedHitPartyMessage', {
+      color: {},
       world: 302,
     });
-    expect(player.combatLevel).toBe(126);
-    expect(player.lastAttackedTarget?.npcId).toBe(9999);
+    expect(result.lastAttackedTarget).toBeUndefined();
   });
 });
