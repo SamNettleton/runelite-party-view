@@ -144,7 +144,7 @@ const ALL_PRAYERS = [
   },
   {
     name: 'Piety',
-    bits: [1 << 27],
+    bits: [1 << 27, 2147483648],
     icon: 'https://oldschool.runescape.wiki/w/Special:FilePath/Piety.png',
   },
   {

@@ -50,6 +50,7 @@ export interface PlayerState {
   prayerMask?: number;
   /** The last NPC or player this party member attacked (from PredictedHitPartyMessage). */
   lastAttackedTarget?: LastAttackedTarget;
+  lastUpdated?: number;
 }
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting';
